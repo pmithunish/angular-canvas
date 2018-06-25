@@ -1,0 +1,41 @@
+@import 'src/stylesheets/partials/_mixins';
+@import 'src/stylesheets/partials/_colors';
+
+::-webkit-scrollbar-track {
+  background: $theme-background-contrast-color;
+  border: none;
+}
+
+.content {
+  z-index: 1;
+  height: 100%;
+  @include vertical-overflow;
+}
+
+.orientation-message {
+  display: none;
+  position: relative;
+  top: 80px;
+  text-align: center;
+  background-color: $theme-secondary-color;
+  color: $text-color;
+}
+
+@media only screen and (max-width: 768px) and (orientation: landscape) {
+  .content {
+    display: none;
+  }
+
+  .orientation-message {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+  }
+}

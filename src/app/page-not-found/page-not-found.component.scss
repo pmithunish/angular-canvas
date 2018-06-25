@@ -1,0 +1,10 @@
+@import 'src/stylesheets/partials/_colors';
+@import 'src/stylesheets/partials/_mixins';
+
+.special-characters {
+  color: $warn-color;
+}
+
+@media only screen and (max-width: 768px) {
+  @include small-container;
+}

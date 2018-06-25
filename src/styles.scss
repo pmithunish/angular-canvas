@@ -1,0 +1,21 @@
+/* You can add global styles to this file, and also import other style files */
+@import './stylesheets/partials/_fonts.scss';
+@import './stylesheets/partials/_material.scss';
+@import './stylesheets/partials/_resets.scss';
+@import './stylesheets/partials/_mixins.scss';
+
+.main-container {
+  display: flex;
+  justify-content: center;
+  height: max-content;
+  padding: 60px 0 60px;
+}
+
+.container {
+  z-index: 4;
+  position: relative;
+  display: flex;
+  justify-content: center;
+  height: max-content;
+  width: 70%;
+}

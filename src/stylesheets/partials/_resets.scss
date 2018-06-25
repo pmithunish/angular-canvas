@@ -1,0 +1,38 @@
+@import './_colors.scss';
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+/* width Track Handle of scrollbar*/
+::-webkit-scrollbar {
+  width: 5px;
+}
+
+::-webkit-scrollbar-track {
+  background: inherit;
+  border: 1px solid $theme-background-color;
+}
+
+::-webkit-scrollbar-thumb {
+  background: $theme-secondary-color;
+}
+
+html,
+body {
+  background-color: $theme-background-color;
+  height: 100%;
+  margin: 0px;
+}
+
+div {
+  cursor: default;
+  color: inherit;
+}
+
+::selection {
+  background-color: $selection-background-color;
+  color: $selection-color;
+}

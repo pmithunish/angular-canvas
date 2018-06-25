@@ -1,0 +1,26 @@
+@import 'src/stylesheets/partials/_mixins';
+@import 'src/stylesheets/partials/_colors';
+
+#links {
+  color: $primary-color;
+  text-decoration: none;
+  font-weight: bolder;
+}
+
+#links:hover {
+  color: $accent-color;
+  text-decoration: none;
+  font-weight: bolder;
+}
+
+.container {
+  display: grid;
+  grid: {
+    gap: 25px;
+    template-columns: 1fr;
+  }
+}
+
+@media only screen and (max-width: 768px) {
+  @include small-container;
+}

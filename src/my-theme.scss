@@ -1,0 +1,67 @@
+@import url('https://fonts.googleapis.com/css?family=Poppins');
+@import './stylesheets/partials/_colors';
+@import '~@angular/material/theming';
+
+$font-family: "'Poppins', sans-serif";
+$custom-typography: mat-typography-config($font-family);
+
+@include mat-core($custom-typography);
+
+$my-app-text-color: mat-palette($mat-blue-gray);
+
+$my-app-primary: mat-palette($mat-blue);
+$my-app-accent: mat-palette($mat-yellow, A200, A100, A400);
+$my-app-warn: mat-palette($mat-red);
+$my-app-theme: mat-dark-theme($my-app-primary, $my-app-accent, $my-app-warn);
+
+@function my-mat-dark-theme-foreground($color) {
+  @return (
+    base: $color,
+    divider: $light-dividers,
+    dividers: $light-dividers,
+    disabled: $light-disabled-text,
+    disabled-button: rgba($color, 0.3),
+    disabled-text: $light-disabled-text,
+    hint-text: $light-disabled-text,
+    secondary-text: $light-secondary-text,
+    icon: $color,
+    icons: $color,
+    text: $color,
+    slider-min: $color,
+    slider-off: rgba($color, 0.3),
+    slider-off-active: rgba($color, 0.3)
+  );
+}
+
+@function my-mat-dark-theme-background($color) {
+  @return (
+    status-bar: black,
+    app-bar: map_get($mat-grey, 900),
+    background: $color,
+    hover: rgba(white, 0.04),
+    card: $color,
+    dialog: $color,
+    disabled-button: rgba(white, 0.12),
+    raised-button: map-get($mat-grey, 800),
+    focused-button: $light-focused,
+    selected-button: map_get($mat-grey, 900),
+    selected-disabled-button: map_get($mat-grey, 800),
+    disabled-button-toggle: black,
+    unselected-chip: $color,
+    disabled-list-option: black
+  );
+}
+
+$my-foreground: my-mat-dark-theme-foreground(
+  mat-color($my-app-text-color, 100)
+);
+$my-background: my-mat-dark-theme-background($theme-primary-color);
+$my-app-theme-custom: map-merge(
+  $my-app-theme,
+  (
+    foreground: $my-foreground,
+    background: $my-background
+  )
+);
+
+@include angular-material-theme($my-app-theme-custom);

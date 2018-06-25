@@ -1,0 +1,22 @@
+@mixin flush($left: false, $top: false, $right: false, $bottom: false) {
+  margin-left: if($left, 0, inherit);
+  margin-top: if($top, 0, inherit);
+  margin-right: if($right, 0, inherit);
+  margin-bottom: if($bottom, 0, inherit);
+  padding-left: if($left, 0, inherit);
+  padding-top: if($top, 0, inherit);
+  padding-right: if($right, 0, inherit);
+  padding-bottom: if($bottom, 0, inherit);
+}
+
+@mixin small-container {
+  .container {
+    width: 95%;
+  }
+}
+
+@mixin vertical-overflow {
+  overflow-x: hidden;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
