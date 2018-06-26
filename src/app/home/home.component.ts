@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, HostListener } from '@angular/core';
 import {
   trigger,
   query,
@@ -34,5 +34,5 @@ import {
 export class HomeComponent implements OnInit {
   constructor() {}
 
-  ngOnInit() { }
+  ngOnInit() {}
 }

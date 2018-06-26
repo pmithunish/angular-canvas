@@ -5,6 +5,8 @@ import { NgModule } from '@angular/core';
 import { AppComponent } from './app.component';
 import { HomeComponent } from './home/home.component';
 import { PageNotFoundComponent } from './page-not-found/page-not-found.component';
+import { FloatingDotsComponent } from './canvas/floating-dots/floating-dots.component';
+import { CirculatingDotsComponent } from './canvas/circulating-pixels/circulating-pixels.component';
 
 import { AppRoutingModule } from './app-routing.module';
 
@@ -14,7 +16,16 @@ import {
   MatIconModule
 } from '@angular/material';
 
-const Components = [AppComponent, HomeComponent, PageNotFoundComponent];
+import { WINDOW_PROVIDERS } from './services/window.service';
+import { ScrollService } from './services/scroll.service';
+
+const Components = [
+  AppComponent,
+  HomeComponent,
+  PageNotFoundComponent,
+  FloatingDotsComponent,
+  CirculatingDotsComponent
+];
 
 const MaterialModules = [MatButtonModule, MatCardModule, MatIconModule];
 
@@ -26,7 +37,7 @@ const MaterialModules = [MatButtonModule, MatCardModule, MatIconModule];
     AppRoutingModule,
     ...MaterialModules
   ],
-  providers: [],
+  providers: [WINDOW_PROVIDERS, ScrollService],
   bootstrap: [AppComponent]
 })
 export class AppModule {}
