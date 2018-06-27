@@ -32,6 +32,54 @@ const DEFAULT_COLOR_PALETTE: Array<Color> = [
   { fgColor: `rgba(167,255,235,0.5)` } // Teal
 ];
 
+interface HeightParam {
+  windowHeight: number;
+  heightPercentage: number;
+}
+
+interface WidthParam {
+  windowWidth: number;
+  widthPercentage: number;
+  xPadding: number;
+}
+
+interface OffsetXParam {
+  windowWidth: number;
+  offsetPercentage: number;
+  xPadding: number;
+}
+
+interface OffsetYParam {
+  windowHeight: number;
+  offsetPercentage?: number;
+  yPadding?: number;
+  basePageMargin?: number;
+  baseHeading?: number;
+}
+
+const enum CANVAS {
+  // Values of below enum doesn't change when screen type changes
+  // Since these don't change the program can directly use these values
+  BASE_PAGE_MARGIN = 60,
+  BASE_HEADING = 33 + 24,
+  CARD_PADDING_Y = 48,
+  CARD_OFFSET_PERCENTAGE_Y = 0.4,
+  HEIGHT_PERCENTAGE = 0.4,
+
+  // Values of below enum is chosen according to screen types
+  // one of below values is assigned to var -> cardPaddingX at a given time
+  DEFAULT_CARD_PADDING_X = 48,
+  SMALL_CARD_PADDING_X = 36,
+
+  // one of below values is assigned to var -> widthPercentage at a given time
+  DEFAULT_WIDTH_PERCENTAGE = 0.7,
+  SMALL_WIDTH_PERCENTAGE = 0.95,
+
+  // one of below values is assigned to var -> cardOffsetPercentageX at a given time
+  DEFAULT_CARD_OFFSET_PERCENTAGE_X = 0.15,
+  SMALL_CARD_OFFSET_PERCENTAGE_X = 0.025
+}
+
 @Component({
   selector: 'app-floating-dots',
   templateUrl: './floating-dots.component.html',
@@ -40,9 +88,7 @@ const DEFAULT_COLOR_PALETTE: Array<Color> = [
 })
 export class FloatingDotsComponent implements OnInit, OnDestroy {
   @ViewChild('mycanvas') canvasRef: ElementRef;
-  @Input('colorPalette') colorPalette: Array<Color>;
-  @Input('opacity') opacity: number;
-  @Output() smallDevice = new EventEmitter<Boolean>();
+  colorPalette: Array<Color>;
   randomOpacityStart = 0.5;
   randomOpacityEnd = 0.5; // actual end = end + start i.e., end = 0.5 + 0.5 = 1
   radiusStart = 4;
@@ -74,6 +120,9 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
   negativeRangeFromMouse = -50;
   scrollY = 0;
   scrollSubscription: Subscription;
+  cardPaddingX: number = CANVAS.DEFAULT_CARD_PADDING_X;
+  widthPercentage: number = CANVAS.DEFAULT_WIDTH_PERCENTAGE;
+  cardOffsetPercentageX: number = CANVAS.DEFAULT_CARD_OFFSET_PERCENTAGE_X;
 
   constructor(
     @Inject(WINDOW) private window: Window,
@@ -82,7 +131,6 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
   ) {}
 
   ngOnDestroy() {
-    this.opacity = undefined;
     this.canvasRef = undefined;
     this.randomOpacityStart = undefined;
     this.randomOpacityEnd = undefined;
@@ -111,6 +159,9 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
     this.scrollSubscription !== undefined
       ? this.scrollSubscription.unsubscribe()
       : (this.scrollSubscription = undefined);
+    this.cardPaddingX = undefined;
+    this.widthPercentage = undefined;
+    this.cardOffsetPercentageX = undefined;
   }
 
   ngOnInit() {
@@ -118,31 +169,94 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
       val => (this.scrollY = val)
     );
     // setting the initial canvas width and height
-    this.canvasRef.nativeElement.width = this.window.innerWidth * 0.7 - 48;
-    this.canvasRef.nativeElement.height = this.window.innerHeight * 0.4;
+    this.setCanvasDefaults().then(() => {
+      this.setWidthHeight();
 
-    this.ctx = this.canvasRef.nativeElement.getContext('2d');
+      this.ctx = this.canvasRef.nativeElement.getContext('2d');
 
-    if (this.colorPalette === undefined) {
-      this.colorPalette = DEFAULT_COLOR_PALETTE;
-    }
-    this.circlesInit();
-    this.onresize();
-    // run the initial paint outside the ngZone
-    this.ngZone.runOutsideAngular(() => this.paint());
+      if (this.colorPalette === undefined) {
+        this.colorPalette = DEFAULT_COLOR_PALETTE;
+      }
+      this.circlesInit();
+      this.onresize();
+      // run the initial paint outside the ngZone
+      this.ngZone.runOutsideAngular(() => this.paint());
+    });
   }
 
   @HostListener('mousemove', ['$event'])
   onmousemove(event) {
-    this.mouse.x = event.x - this.window.innerWidth * 0.15 - 24;
-    this.mouse.y = event.y - 60 - 24 - 76 - 24 + this.scrollY;
+    this.mouse.x =
+      event.x -
+      this.offsetX({
+        windowWidth: this.window.innerWidth,
+        offsetPercentage: this.cardOffsetPercentageX,
+        xPadding: this.cardPaddingX
+      });
+    this.mouse.y =
+      event.y -
+      this.offsetY({ windowHeight: this.window.innerHeight }) +
+      this.scrollY;
   }
 
   @HostListener('window:resize')
   onresize() {
-    // this.canvasRef.nativeElement.width = this.window.innerWidth;
-    // this.canvasRef.nativeElement.height = this.window.innerHeight;
-    this.circlesInit();
+    this.setCanvasDefaults().then(() => {
+      this.setWidthHeight();
+      this.circlesInit();
+    });
+  }
+
+  setCanvasDefaults() {
+    return new Promise(resolve => {
+      if (this.window.innerWidth <= 768) {
+        this.widthPercentage = CANVAS.SMALL_WIDTH_PERCENTAGE;
+        this.cardOffsetPercentageX = CANVAS.SMALL_CARD_OFFSET_PERCENTAGE_X;
+        this.cardPaddingX = CANVAS.SMALL_CARD_PADDING_X;
+        resolve();
+      } else {
+        this.widthPercentage = CANVAS.DEFAULT_WIDTH_PERCENTAGE;
+        this.cardOffsetPercentageX = CANVAS.DEFAULT_CARD_OFFSET_PERCENTAGE_X;
+        this.cardPaddingX = CANVAS.DEFAULT_CARD_PADDING_X;
+        resolve();
+      }
+    });
+  }
+
+  setWidthHeight() {
+    this.canvasRef.nativeElement.width = this.width({
+      windowWidth: this.window.innerWidth,
+      widthPercentage: this.widthPercentage,
+      xPadding: this.cardPaddingX
+    });
+    this.canvasRef.nativeElement.height = this.height({
+      windowHeight: this.window.innerHeight,
+      heightPercentage: CANVAS.HEIGHT_PERCENTAGE
+    });
+  }
+
+  height(param: HeightParam): number {
+    return param.windowHeight * param.heightPercentage;
+  }
+
+  width(param: WidthParam): number {
+    return param.windowWidth * param.widthPercentage - param.xPadding;
+  }
+
+  offsetY(param: OffsetYParam): number {
+    param.basePageMargin = param.basePageMargin || CANVAS.BASE_PAGE_MARGIN;
+    param.baseHeading = param.baseHeading || CANVAS.BASE_HEADING;
+    param.offsetPercentage =
+      param.offsetPercentage || CANVAS.CARD_OFFSET_PERCENTAGE_Y;
+    param.yPadding = param.yPadding || CANVAS.CARD_PADDING_Y;
+    return (
+      // param.windowHeight * param.offsetPercentage +
+      param.basePageMargin + param.baseHeading + param.yPadding / 2
+    );
+  }
+
+  offsetX(param: OffsetXParam): number {
+    return param.windowWidth * param.offsetPercentage + param.xPadding / 2;
   }
 
   private circlesInit() {
