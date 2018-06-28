@@ -7,18 +7,16 @@ import {
   NgZone,
   HostListener,
   OnDestroy,
-  Input,
-  ChangeDetectionStrategy,
-  Output,
-  EventEmitter
+  ChangeDetectionStrategy
 } from '@angular/core';
 
-import { WINDOW, WindowRef } from './../../services/window.service';
+import { WINDOW } from './../../services/window.service';
 
 import { Circle } from './../../models/circle';
 import { Color } from './../../models/color';
 import { ScrollService } from './../../services/scroll.service';
 import { Subscription } from 'rxjs';
+import { Mouse } from '../../models/mouse';
 
 const DEFAULT_COLOR_PALETTE: Array<Color> = [
   { fgColor: `rgba(255,138,128,0.5)` }, // Red
@@ -50,8 +48,6 @@ interface OffsetXParam {
 }
 
 interface OffsetYParam {
-  windowHeight: number;
-  offsetPercentage?: number;
   yPadding?: number;
   basePageMargin?: number;
   baseHeading?: number;
@@ -65,6 +61,8 @@ const enum CANVAS {
   CARD_PADDING_Y = 48,
   CARD_OFFSET_PERCENTAGE_Y = 0.4,
   HEIGHT_PERCENTAGE = 0.4,
+  START_X = 0,
+  START_Y = 0,
 
   // Values of below enum is chosen according to screen types
   // one of below values is assigned to var -> cardPaddingX at a given time
@@ -80,6 +78,24 @@ const enum CANVAS {
   SMALL_CARD_OFFSET_PERCENTAGE_X = 0.025
 }
 
+const enum INFO {
+  MAX_SMALL_SIZE = 768,
+  RADIUS_MIN = 4,
+  RADIUS_MAX = 2, // actual max = max + min i.e., max = 4 + 2 = 6
+  MAX_RADIUS = 50,
+  CIRCLES_SIZE = 500,
+  CIRCLE_PLOT_CLOCKWISE = 1,
+  RADIUS_INCREMENT = 1,
+  RADIUS_DECREMENT = 1,
+  POSITIVE_RANGE_FROM_MOUSE = 50,
+  NEGATIVE_RANGE_FROM_MOUSE = -50,
+  CIRCLE_START_RADIAN = 0,
+  CIRCLE_END_RADIAN = 2, // should be multiplied with Math.PI to get the actual radian
+  VELOCITY_X_RANGE = 0.5, // actual range will be -x to x
+  VELOCITY_Y_RANGE = 0.5, // actual range will be -x to x
+  SCROLL_Y_INITIAL = 0
+}
+
 @Component({
   selector: 'app-floating-dots',
   templateUrl: './floating-dots.component.html',
@@ -89,36 +105,10 @@ const enum CANVAS {
 export class FloatingDotsComponent implements OnInit, OnDestroy {
   @ViewChild('mycanvas') canvasRef: ElementRef;
   colorPalette: Array<Color>;
-  randomOpacityStart = 0.5;
-  randomOpacityEnd = 0.5; // actual end = end + start i.e., end = 0.5 + 0.5 = 1
-  radiusStart = 4;
-  radiusEnd = 2; // actual end = 4 + 2 = 6;
   ctx: CanvasRenderingContext2D;
   circles: Array<Circle> = [];
-  mouse: { x: number; y: number } = { x: undefined, y: undefined };
-  maxRadius = 50;
-  // navbarWidthPercent = 0.0416; // navbarWidth = 4.16/100 = 0.0416
-  avoidSpawnAtLeftAndRight = 2; // when multiplied by the radius of the circle and subtracted
-  // from the canvas width gives a number which then can be used
-  // to guess the x cordinate of center of the circle avoiding left
-  // and right columns of the canvas
-  avoidSpawnAtTopAndBottom = 2; // when multiplied by the radius of the circle and subtracted
-  // from the canvas height gives a number which then can be used
-  // to guess the y cordinate of center of the circle avoiding top
-  // and bottom rows of the canvas
-  totalCircles = 500; // total number of circles to be drawn on canvas
-  xVelocityRange = 0.5; // when subtracted from Math.random() => gives a random number between -0.5 to 0.5
-  yVelocityRange = 0.5; // when subtracted from Math.random() => gives a random number between -0.5 to 0.5
-  circleStartingRadian = 0; // circle drawing should start from this angle
-  circleEndingRadian = 2 * Math.PI; // circle drawing should end at this angle
-  circleClockWise = true; // circle drawing should be clockwise if set to true otherwise anticlockwise
-  canvasStartX = 0; // starting x coordinate of canvas
-  canvasStartY = 0; // starting y coordinate of canvas
-  radiusIncrement = 1; // radius should increment by this factor
-  radiusDecrement = 1; // radius should decrement by this factor
-  positiveRangeFromMouse = 50;
-  negativeRangeFromMouse = -50;
-  scrollY = 0;
+  mouse: Mouse = { x: undefined, y: undefined };
+  scrollY: number = INFO.SCROLL_Y_INITIAL;
   scrollSubscription: Subscription;
   cardPaddingX: number = CANVAS.DEFAULT_CARD_PADDING_X;
   widthPercentage: number = CANVAS.DEFAULT_WIDTH_PERCENTAGE;
@@ -132,29 +122,10 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
 
   ngOnDestroy() {
     this.canvasRef = undefined;
-    this.randomOpacityStart = undefined;
-    this.randomOpacityEnd = undefined;
-    this.radiusStart = undefined;
-    this.radiusEnd = undefined;
     this.colorPalette = undefined;
     this.ctx = undefined;
     this.circles = undefined;
     this.mouse = undefined;
-    this.maxRadius = undefined;
-    this.avoidSpawnAtLeftAndRight = undefined;
-    this.avoidSpawnAtTopAndBottom = undefined;
-    this.totalCircles = undefined;
-    this.xVelocityRange = undefined;
-    this.yVelocityRange = undefined;
-    this.circleStartingRadian = undefined;
-    this.circleEndingRadian = undefined;
-    this.circleClockWise = undefined;
-    this.canvasStartX = undefined;
-    this.canvasStartY = undefined;
-    this.radiusIncrement = undefined;
-    this.radiusDecrement = undefined;
-    this.positiveRangeFromMouse = undefined;
-    this.negativeRangeFromMouse = undefined;
     this.scrollY = undefined;
     this.scrollSubscription !== undefined
       ? this.scrollSubscription.unsubscribe()
@@ -193,10 +164,7 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
         offsetPercentage: this.cardOffsetPercentageX,
         xPadding: this.cardPaddingX
       });
-    this.mouse.y =
-      event.y -
-      this.offsetY({ windowHeight: this.window.innerHeight }) +
-      this.scrollY;
+    this.mouse.y = event.y - this.offsetY({}) + this.scrollY;
   }
 
   @HostListener('window:resize')
@@ -209,7 +177,7 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
 
   setCanvasDefaults() {
     return new Promise(resolve => {
-      if (this.window.innerWidth <= 768) {
+      if (this.window.innerWidth <= INFO.MAX_SMALL_SIZE) {
         this.widthPercentage = CANVAS.SMALL_WIDTH_PERCENTAGE;
         this.cardOffsetPercentageX = CANVAS.SMALL_CARD_OFFSET_PERCENTAGE_X;
         this.cardPaddingX = CANVAS.SMALL_CARD_PADDING_X;
@@ -246,34 +214,30 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
   offsetY(param: OffsetYParam): number {
     param.basePageMargin = param.basePageMargin || CANVAS.BASE_PAGE_MARGIN;
     param.baseHeading = param.baseHeading || CANVAS.BASE_HEADING;
-    param.offsetPercentage =
-      param.offsetPercentage || CANVAS.CARD_OFFSET_PERCENTAGE_Y;
     param.yPadding = param.yPadding || CANVAS.CARD_PADDING_Y;
-    return (
-      // param.windowHeight * param.offsetPercentage +
-      param.basePageMargin + param.baseHeading + param.yPadding / 2
-    );
+    return param.basePageMargin + param.baseHeading + param.yPadding / 2;
   }
 
   offsetX(param: OffsetXParam): number {
     return param.windowWidth * param.offsetPercentage + param.xPadding / 2;
   }
 
+  diameter(radius: number) {
+    return 2 * radius;
+  }
+
   private circlesInit() {
-    for (let i = 0; i < this.totalCircles; i++) {
-      const radius = Math.random() * this.radiusStart + this.radiusEnd;
-      const xStart =
-        this.canvasRef.nativeElement.width -
-        radius * this.avoidSpawnAtLeftAndRight;
+    for (let i = 0; i < INFO.CIRCLES_SIZE; i++) {
+      const radius = Math.random() * INFO.RADIUS_MIN + INFO.RADIUS_MAX;
+      const xStart = this.canvasRef.nativeElement.width - this.diameter(radius);
       const xEnd = radius;
       const yStart =
-        this.canvasRef.nativeElement.height -
-        radius * this.avoidSpawnAtTopAndBottom;
+        this.canvasRef.nativeElement.height - this.diameter(radius);
       const yEnd = radius;
       const x = Math.random() * xStart + xEnd;
       const y = Math.random() * yStart + yEnd;
-      const dx = Math.random() - this.xVelocityRange;
-      const dy = Math.random() - this.yVelocityRange;
+      const dx = Math.random() - INFO.VELOCITY_X_RANGE;
+      const dy = Math.random() - INFO.VELOCITY_Y_RANGE;
       const randomIndexOfColor = Math.floor(
         Math.random() * this.colorPalette.length
       );
@@ -288,8 +252,8 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
       return;
     }
     this.ctx.clearRect(
-      this.canvasStartX,
-      this.canvasStartY,
+      CANVAS.START_X,
+      CANVAS.START_Y,
       this.canvasRef.nativeElement.width,
       this.canvasRef.nativeElement.height
     );
@@ -304,9 +268,9 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
       circle.x,
       circle.y,
       circle.radius,
-      this.circleStartingRadian,
-      this.circleEndingRadian,
-      this.circleClockWise
+      INFO.CIRCLE_START_RADIAN * Math.PI,
+      INFO.CIRCLE_END_RADIAN * Math.PI,
+      INFO.CIRCLE_PLOT_CLOCKWISE ? true : false
     );
     this.ctx.fillStyle = circle.color;
     this.ctx.fill();
@@ -315,29 +279,29 @@ export class FloatingDotsComponent implements OnInit, OnDestroy {
   private update(circle: Circle) {
     if (
       circle.x + circle.radius > this.canvasRef.nativeElement.width ||
-      circle.x - circle.radius < this.canvasStartX
+      circle.x - circle.radius < CANVAS.START_X
     ) {
       circle.dx = -circle.dx;
     }
     if (
       circle.y + circle.radius > this.canvasRef.nativeElement.height ||
-      circle.y - circle.radius < this.canvasStartY
+      circle.y - circle.radius < CANVAS.START_Y
     ) {
       circle.dy = -circle.dy;
     }
     circle.x += circle.dx;
     circle.y += circle.dy;
     if (
-      this.mouse.y - circle.y < this.positiveRangeFromMouse &&
-      this.mouse.x - circle.x < this.positiveRangeFromMouse &&
-      this.mouse.x - circle.x > this.negativeRangeFromMouse &&
-      this.mouse.y - circle.y > this.negativeRangeFromMouse
+      this.mouse.y - circle.y < INFO.POSITIVE_RANGE_FROM_MOUSE &&
+      this.mouse.x - circle.x < INFO.POSITIVE_RANGE_FROM_MOUSE &&
+      this.mouse.x - circle.x > INFO.NEGATIVE_RANGE_FROM_MOUSE &&
+      this.mouse.y - circle.y > INFO.NEGATIVE_RANGE_FROM_MOUSE
     ) {
-      if (circle.radius < this.maxRadius) {
-        circle.radius += this.radiusIncrement;
+      if (circle.radius < INFO.MAX_RADIUS) {
+        circle.radius += INFO.RADIUS_INCREMENT;
       }
     } else if (circle.radius > circle.minRadius) {
-      circle.radius -= this.radiusDecrement;
+      circle.radius -= INFO.RADIUS_DECREMENT;
     }
 
     this.draw(circle);

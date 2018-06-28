@@ -10,11 +10,12 @@ import {
   ChangeDetectionStrategy
 } from '@angular/core';
 
-import { WINDOW, WindowRef } from './../../services/window.service';
+import { WINDOW } from './../../services/window.service';
 import { ScrollService } from './../../services/scroll.service';
 import { Subscription } from 'rxjs';
 import { Color } from './../../models/color';
 import { Mouse } from './../../models/mouse';
+import { Particle } from './../../models/particle';
 
 const DEFAULT_COLOR_PALETTE: Array<Color> = [
   { fgColor: `rgba(255,138,128,1)` }, // Red
@@ -76,6 +77,16 @@ const enum CANVAS {
   SMALL_CARD_OFFSET_PERCENTAGE_X = 0.025
 }
 
+const enum INFO {
+  MAX_SMALL_SIZE = 768,
+  PARTICLES_SIZE = 50,
+  PARTICLE_RADIUS_MIN = 2,
+  PARTICLE_RADIUS_MAX = 1, // actual max = min + current i.e., max = 2 + 1 = 3
+  CANVAS_BACKGROUND_COLOR = 'rgba(0,0,0,0.1)',
+  PARTICLE_DRIFT_VELOCITY = 0.05,
+  SCROLL_Y_INITIAL = 0
+}
+
 @Component({
   selector: 'app-circulating-pixels',
   templateUrl: './circulating-pixels.component.html',
@@ -88,11 +99,13 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
   ctx: CanvasRenderingContext2D;
   particles: Array<Particle> = [];
   mouse: Mouse;
-  scrollY = 0;
+  scrollY: number = INFO.SCROLL_Y_INITIAL;
   scrollSubscription: Subscription;
   cardPaddingX: number = CANVAS.DEFAULT_CARD_PADDING_X;
   widthPercentage: number = CANVAS.DEFAULT_WIDTH_PERCENTAGE;
   cardOffsetPercentageX: number = CANVAS.DEFAULT_CARD_OFFSET_PERCENTAGE_X;
+  centerX: number;
+  centerY: number;
   constructor(
     @Inject(WINDOW) private window: Window,
     private ngZone: NgZone,
@@ -111,6 +124,8 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
     this.cardPaddingX = undefined;
     this.widthPercentage = undefined;
     this.cardOffsetPercentageX = undefined;
+    this.centerX = undefined;
+    this.centerY = undefined;
   }
 
   ngOnInit() {
@@ -129,9 +144,11 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
       }
 
       // Setting the spawn position to center of the canvas
+      this.centerX = this.canvasRef.nativeElement.width / 2;
+      this.centerY = this.canvasRef.nativeElement.height / 2;
       this.mouse = {
-        x: this.canvasRef.nativeElement.width / 2,
-        y: this.canvasRef.nativeElement.height / 2
+        x: this.centerX,
+        y: this.centerY
       };
 
       // Initalize the particles array so that the painting process can start
@@ -167,7 +184,7 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
 
   setCanvasDefaults() {
     return new Promise(resolve => {
-      if (this.window.innerWidth <= 768) {
+      if (this.window.innerWidth <= INFO.MAX_SMALL_SIZE) {
         this.widthPercentage = CANVAS.SMALL_WIDTH_PERCENTAGE;
         this.cardOffsetPercentageX = CANVAS.SMALL_CARD_OFFSET_PERCENTAGE_X;
         this.cardPaddingX = CANVAS.SMALL_CARD_PADDING_X;
@@ -221,12 +238,14 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
 
   private particlesInit() {
     this.particles = [];
-    for (let i = 0; i < 50; i++) {
-      const radius = Math.random() * 2 + 1;
+    for (let i = 0; i < INFO.PARTICLES_SIZE; i++) {
+      const min = INFO.PARTICLE_RADIUS_MIN;
+      const max = INFO.PARTICLE_RADIUS_MAX;
+      const radius = Math.random() * min + max;
       this.particles.push(
         new Particle(
-          this.canvasRef.nativeElement.width / 2,
-          this.canvasRef.nativeElement.height / 2,
+          this.centerX,
+          this.centerY,
           radius,
           this.colorPalette[
             Math.floor(Math.random() * this.colorPalette.length)
@@ -239,10 +258,12 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
   private paint() {
     requestAnimationFrame(() => this.paint());
 
-    this.ctx.fillStyle = 'rgba(0,0,0,0.1)';
+    this.ctx.fillStyle = INFO.CANVAS_BACKGROUND_COLOR;
+    const startX = 0;
+    const startY = 0;
     this.ctx.fillRect(
-      0,
-      0,
+      startX,
+      startY,
       this.canvasRef.nativeElement.width,
       this.canvasRef.nativeElement.height
     );
@@ -263,8 +284,10 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
 
   private update(particle: Particle) {
     particle.lastPoint = { x: particle.x, y: particle.y };
-    particle.lastMouse.x += (this.mouse.x - particle.lastMouse.x) * 0.05;
-    particle.lastMouse.y += (this.mouse.y - particle.lastMouse.y) * 0.05;
+    particle.lastMouse.x +=
+      (this.mouse.x - particle.lastMouse.x) * INFO.PARTICLE_DRIFT_VELOCITY;
+    particle.lastMouse.y +=
+      (this.mouse.y - particle.lastMouse.y) * INFO.PARTICLE_DRIFT_VELOCITY;
     particle.radians += particle.velocity;
     particle.x =
       particle.lastMouse.x +
@@ -273,24 +296,5 @@ export class CirculatingDotsComponent implements OnInit, OnDestroy {
       particle.lastMouse.y +
       Math.sin(particle.radians) * particle.distanceFromCenter;
     this.draw(particle);
-  }
-}
-
-export class Particle {
-  x: number;
-  y: number;
-  radius: number;
-  color: string;
-  radians = Math.random() * Math.PI * 2;
-  velocity = Math.random() * 0.03 + 0.02;
-  distanceFromCenter = Math.random() * 70 + 50;
-  lastPoint: { x: number; y: number };
-  lastMouse: { x: number; y: number };
-  constructor(x, y, radius, color) {
-    this.x = x;
-    this.y = y;
-    this.lastMouse = { x: x, y: y };
-    this.radius = radius;
-    this.color = color;
   }
 }
